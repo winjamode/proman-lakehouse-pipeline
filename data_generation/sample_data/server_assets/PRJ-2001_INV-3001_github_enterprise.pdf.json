@@ -1,0 +1,21 @@
+{
+  "document_id": "INV-3001",
+  "expense_id": "EXP-3001",
+  "project_id": "PRJ-2001",
+  "task_id": null,
+  "document_category": "vendor_invoice",
+  "vendor_name": "GitHub Enterprise",
+  "category": "Developer Tooling",
+  "expense_date": "2026-08-10",
+  "amount": 466.72,
+  "currency": "EUR",
+  "file_name": "PRJ-2001_INV-3001_github_enterprise.pdf",
+  "file_extension": "pdf",
+  "file_size_bytes": 3863,
+  "sha256_checksum": "57ab2852bc630d2f0cc0829b9e2b201d4dbf3c4fb1b8da97fbdb94e96e9b50b4",
+  "created_at": "2026-09-10T14:24:58.641137+00:00",
+  "tags": [
+    "INVOICE",
+    "FINANCE"
+  ]
+}

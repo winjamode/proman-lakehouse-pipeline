@@ -1,0 +1,10 @@
+# Credentials & Secrets
+.env
+*.pem
+*secret*
+azure_creds.json
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store

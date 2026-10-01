@@ -1,0 +1,63 @@
+{
+  "system_name": "ProMan-TimeSync-Microservice",
+  "export_version": "3.2.0",
+  "extracted_at": "2026-09-20 23:12:22.740626",
+  "record_count": 5,
+  "logs": [
+    {
+      "entry_id": "LOG-1106",
+      "project_id": "PRJ-2006",
+      "task_id": "TSK-5030",
+      "user_id": 110,
+      "date": "2026-09-20",
+      "hours_worked": 3.8,
+      "progress_pct": 87,
+      "activity_description": "Day 2 continuation of work",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1107",
+      "project_id": "PRJ-2006",
+      "task_id": "TSK-5029",
+      "user_id": 117,
+      "date": "2026-09-20",
+      "hours_worked": 3.3,
+      "progress_pct": 44,
+      "activity_description": "Day 2 continuation of work",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1108",
+      "project_id": "PRJ-2006",
+      "task_id": "TSK-5028",
+      "user_id": 105,
+      "date": "2026-09-20",
+      "hours_worked": 2.5,
+      "progress_pct": 55,
+      "activity_description": "Day 2 continuation of work",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1109",
+      "project_id": "PRJ-2006",
+      "task_id": "TSK-5027",
+      "user_id": 103,
+      "date": "2026-09-20",
+      "hours_worked": 3.5,
+      "progress_pct": 100,
+      "activity_description": "Day 2 continuation of work",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1110",
+      "project_id": "PRJ-2006",
+      "task_id": "TSK-5026",
+      "user_id": 110,
+      "date": "2026-09-20",
+      "hours_worked": 1.4,
+      "progress_pct": 100,
+      "activity_description": "Day 2 continuation of work",
+      "is_billable": true
+    }
+  ]
+}

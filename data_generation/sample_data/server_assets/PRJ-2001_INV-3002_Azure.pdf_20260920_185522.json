@@ -1,0 +1,20 @@
+{
+  "document_id": "INV-3002",
+  "expense_id": "EXP-3002",
+  "project_id": "PRJ-2001",
+  "task_id": null,
+  "document_category": "vendor_invoice",
+  "vendor_name": "Azure",
+  "category": "Cloud",
+  "expense_date": "2026-08-31",
+  "amount": 1258.81,
+  "currency": "EUR",
+  "file_name": "PRJ-2001_INV-3002_Azure.pdf",
+  "file_extension": "pdf",
+  "file_size_bytes": 3884,
+  "sha256_checksum": "86752d95e24245ce609d7610486c655f9f97083843060accf5be9f1dc924951d",
+  "created_at": "2026-09-20 18:55:22.509897",
+  "tags": [
+    "INVOICE"
+  ]
+}

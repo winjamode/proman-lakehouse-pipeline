@@ -1,0 +1,22 @@
+{
+  "document_id": "INV-3001",
+  "expense_id": "EXP-3001",
+  "project_id": "PRJ-2001",
+  "task_id": null,
+  "document_category": "vendor_invoice",
+  "vendor_name": "Amazon Web Services",
+  "category": "Cloud Infrastructure",
+  "expense_date": "2026-07-04",
+  "amount": 4033.84,
+  "currency": "EUR",
+  "file_name": "PRJ-2001_INV-3001_amazon_web_services.pdf",
+  "file_extension": "pdf",
+  "file_size_bytes": 2340,
+  "sha256_checksum": "976145360578517ef5f1560fa010aee19f7ea4f389ec2ed163c603aef2b80ea7",
+  "created_at": "2026-09-09T13:18:03.365337+00:00",
+  "tags": [
+    "INVOICE",
+    "FINANCE",
+    "CLOUD INFRASTRUCTURE"
+  ]
+}

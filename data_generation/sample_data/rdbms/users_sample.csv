@@ -1,0 +1,22 @@
+user_id,full_name,email,department,role,hourly_rate,is_active
+101,Shelly Michael,shelly.michael@proman.com,Product,Product Owner,65.0,True
+102,Christopher Bush,christopher.bush@proman.com,Engineering,Developer,85.0,True
+103,Mathew Hernandez,mathew.hernandez@proman.com,Cloud Ops,DevOps,75.0,True
+104,Patricia Baird,patricia.baird@proman.com,Cloud Ops,DevOps,65.0,True
+105,Devon Smith,devon.smith@proman.com,Product,Product Owner,65.0,True
+106,Samuel Freeman,samuel.freeman@proman.com,QA,QA Tester,95.0,True
+107,Derrick Henry,derrick.henry@proman.com,Engineering,Developer,65.0,True
+108,Haley Ball,haley.ball@proman.com,Engineering,Developer,75.0,True
+109,James Holland,james.holland@proman.com,Cloud Ops,DevOps,65.0,True
+110,Chad Brown,chad.brown@proman.com,QA,QA Tester,75.0,True
+111,Adam Tucker,adam.tucker@proman.com,Product,Product Owner,95.0,True
+112,Kimberly Perez,kimberly.perez@proman.com,Cloud Ops,DevOps,95.0,True
+113,Michael Wagner,michael.wagner@proman.com,QA,QA Tester,85.0,True
+114,Dana Randall,dana.randall@proman.com,Engineering,Developer,75.0,True
+115,Michael Frederick,michael.frederick@proman.com,Product,Product Owner,95.0,True
+116,Lisa Dillon,lisa.dillon@proman.com,Data,Data Engineer,85.0,True
+117,Ray Webb,ray.webb@proman.com,Cloud Ops,DevOps,75.0,True
+118,Sandra Gutierrez,sandra.gutierrez@proman.com,Data,Data Engineer,65.0,True
+119,Margaret Jones,margaret.jones@proman.com,Engineering,Developer,95.0,True
+120,Shelby Daniels,shelby.daniels@proman.com,Engineering,Developer,85.0,True
+999,Bad User,not-an-email.com,QA,Tester,-10.0,True

@@ -1,0 +1,36 @@
+task_id,project_id,assigned_user_id,task_name,priority,status,estimated_hours
+TSK-5001,PRJ-2001,120,Design database - SSO Login System,Critical,Blocked,60
+TSK-5002,PRJ-2001,118,Setup CI/CD - SSO Login System,Low,Done,20
+TSK-5003,PRJ-2001,118,Security review - SSO Login System,High,Done,40
+TSK-5004,PRJ-2001,119,Security review - SSO Login System,Low,Done,30
+TSK-5005,PRJ-2001,102,Write tests - SSO Login System,Low,Done,30
+TSK-5006,PRJ-2002,104,Setup CI/CD - Data Warehouse Migration,High,In Progress,60
+TSK-5007,PRJ-2002,106,Build API - Data Warehouse Migration,High,In Progress,60
+TSK-5008,PRJ-2002,999,Security review - Data Warehouse Migration,Medium,In Progress,20
+TSK-5009,PRJ-2002,118,Setup CI/CD - Data Warehouse Migration,Critical,Done,30
+TSK-5010,PRJ-2003,999,Security review - Mobile App Redesign,High,In Progress,80
+TSK-5011,PRJ-2003,102,Write tests - Mobile App Redesign,Critical,Done,30
+TSK-5012,PRJ-2003,109,Create UI - Mobile App Redesign,High,In Progress,20
+TSK-5013,PRJ-2003,107,Security review - Mobile App Redesign,Critical,Blocked,60
+TSK-5014,PRJ-2003,105,Build API - Mobile App Redesign,High,In Progress,40
+TSK-5015,PRJ-2004,119,Setup CI/CD - Billing & Payment API,High,To Do,60
+TSK-5016,PRJ-2004,108,Setup CI/CD - Billing & Payment API,Low,To Do,30
+TSK-5017,PRJ-2004,102,Security review - Billing & Payment API,Medium,Done,20
+TSK-5018,PRJ-2004,114,Setup CI/CD - Billing & Payment API,Critical,Done,80
+TSK-5019,PRJ-2004,120,Write tests - Billing & Payment API,Low,To Do,60
+TSK-5020,PRJ-2004,104,Security review - Billing & Payment API,High,In Progress,100
+TSK-5021,PRJ-2005,110,Setup CI/CD - Notifications Service,Low,Done,60
+TSK-5022,PRJ-2005,109,Create UI - Notifications Service,Low,Done,80
+TSK-5023,PRJ-2005,999,Create UI - Notifications Service,Medium,To Do,40
+TSK-5024,PRJ-2005,105,Create UI - Notifications Service,Low,Done,40
+TSK-5025,PRJ-2006,111,Design database - Cloud Infrastructure upgrade,High,Done,60
+TSK-5026,PRJ-2006,110,Build API - Cloud Infrastructure upgrade,Low,Done,30
+TSK-5027,PRJ-2006,103,Create UI - Cloud Infrastructure upgrade,Medium,Done,60
+TSK-5028,PRJ-2006,105,Build API - Cloud Infrastructure upgrade,High,Blocked,60
+TSK-5029,PRJ-2006,117,Build API - Cloud Infrastructure upgrade,Medium,Blocked,80
+TSK-5030,PRJ-2006,110,Setup CI/CD - Cloud Infrastructure upgrade,Critical,In Progress,60
+TSK-5031,PRJ-2007,108,Design database - AI Support Chatbot,High,To Do,30
+TSK-5032,PRJ-2007,101,Create UI - AI Support Chatbot,Medium,To Do,80
+TSK-5033,PRJ-2007,119,Design database - AI Support Chatbot,Low,To Do,30
+TSK-5034,PRJ-2007,999,Build API - AI Support Chatbot,Low,To Do,20
+TSK-9999,PRJ-9999,999,Bad Task,High,In QA,0

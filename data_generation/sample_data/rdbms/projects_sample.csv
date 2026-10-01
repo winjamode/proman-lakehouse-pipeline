@@ -1,0 +1,9 @@
+project_id,project_name,status,start_date,due_date,budget_hours,budget_amount
+PRJ-2001,SSO Login System,Completed,2026-05-23,2026-09-10,176,17080.0
+PRJ-2002,Data Warehouse Migration,In Progress,2026-06-22,2026-11-19,165,16200.0
+PRJ-2003,Mobile App Redesign,Delayed,2026-06-12,2026-09-05,253,23240.0
+PRJ-2004,Billing & Payment API,In Progress,2026-08-06,2026-12-04,363,32040.0
+PRJ-2005,Notifications Service,In Progress,2026-07-22,2026-11-04,242,22360.0
+PRJ-2006,Cloud Infrastructure upgrade,Delayed,2026-07-02,2026-09-30,385,33800.0
+PRJ-2007,AI Support Chatbot,Planning,2026-09-05,2027-01-08,176,17080.0
+PRJ-9999,Bad Project,In Progress,2026-12-31,2026-01-01,-50,-1500.0

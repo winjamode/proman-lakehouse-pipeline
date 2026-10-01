@@ -1,0 +1,22 @@
+SELECT 
+    project_id,
+    project_name,
+    status,
+    budget_hours,
+    actual_hours,
+    hours_variance,
+    hours_burn_rate_pct,
+    budget_amount,
+    labor_cost,
+    non_labor_cost,
+    total_actual_cost,
+    financial_variance,
+    cost_burn_rate_pct,
+    total_tasks,
+    completed_tasks,
+    blocked_tasks,
+    task_completion_pct,
+    avg_task_progress_pct,
+    total_documents,
+    total_storage_mb
+FROM dbw_proman_lakehouse_01.default.agg_project_overview;

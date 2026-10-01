@@ -1,0 +1,2050 @@
+{
+  "datasets": [
+    {
+      "name": "6c804f3e",
+      "displayName": "ds_project_kpi_overview",
+      "queryLines": [
+        "SELECT \r\n",
+        "    project_id,\r\n",
+        "    project_name,\r\n",
+        "    status,\r\n",
+        "    budget_hours,\r\n",
+        "    actual_hours,\r\n",
+        "    hours_variance,\r\n",
+        "    hours_burn_rate_pct,\r\n",
+        "    budget_amount,\r\n",
+        "    labor_cost,\r\n",
+        "    non_labor_cost,\r\n",
+        "    total_actual_cost,\r\n",
+        "    financial_variance,\r\n",
+        "    cost_burn_rate_pct,\r\n",
+        "    total_tasks,\r\n",
+        "    completed_tasks,\r\n",
+        "    blocked_tasks,\r\n",
+        "    task_completion_pct,\r\n",
+        "    avg_task_progress_pct,\r\n",
+        "    total_documents,\r\n",
+        "    total_storage_mb\r\n",
+        "FROM dbw_proman_lakehouse_01.default.agg_project_overview;"
+      ]
+    },
+    {
+      "name": "028eeaac",
+      "displayName": "ds_project_weekly_burn_trend",
+      "queryLines": [
+        "WITH weekly_burn AS (\r\n",
+        "    SELECT \r\n",
+        "        p.project_name,\r\n",
+        "        d.year,\r\n",
+        "        DATE_TRUNC('week', d.calendar_date) AS work_week,\r\n",
+        "        ROUND(SUM(f.hours_worked), 1) AS weekly_hours,\r\n",
+        "        ROUND(SUM(f.labor_cost), 2) AS weekly_labor_spend\r\n",
+        "    FROM dbw_proman_lakehouse_01.default.fact_timesheet f\r\n",
+        "    JOIN dbw_proman_lakehouse_01.default.dim_date d ON f.date_key = d.date_key\r\n",
+        "    JOIN dbw_proman_lakehouse_01.default.dim_project p ON f.project_key = p.project_key\r\n",
+        "    WHERE f.project_key != \"-1\"\r\n",
+        "    GROUP BY p.project_name, d.year, DATE_TRUNC('week', d.calendar_date)\r\n",
+        ")\r\n",
+        "SELECT \r\n",
+        "    project_name,\r\n",
+        "    work_week,\r\n",
+        "    weekly_hours,\r\n",
+        "    weekly_labor_spend,\r\n",
+        "    ROUND(\r\n",
+        "        SUM(weekly_labor_spend) OVER (\r\n",
+        "            PARTITION BY project_name \r\n",
+        "            ORDER BY work_week \r\n",
+        "            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\r\n",
+        "        ), 2\r\n",
+        "    ) AS cumulative_labor_spend\r\n",
+        "FROM weekly_burn\r\n",
+        "ORDER BY project_name, work_week;"
+      ]
+    },
+    {
+      "name": "5f053374",
+      "displayName": "ds_project_task_execution",
+      "queryLines": [
+        "SELECT \r\n",
+        "    project_name,\r\n",
+        "    task_id,\r\n",
+        "    task_name,\r\n",
+        "    assignee_name,\r\n",
+        "    assignee_department,\r\n",
+        "    priority,\r\n",
+        "    task_status,\r\n",
+        "    estimated_hours,\r\n",
+        "    actual_hours_logged,\r\n",
+        "    latest_progress_pct,\r\n",
+        "    hour_variance,\r\n",
+        "    hours_per_progress_pct,\r\n",
+        "    execution_health\r\n",
+        "FROM dbw_proman_lakehouse_01.default.agg_task_overview\r\n",
+        "ORDER BY actual_hours_logged DESC;"
+      ]
+    },
+    {
+      "name": "b65bc16b",
+      "displayName": "ds_project_expenses",
+      "queryLines": [
+        "SELECT \r\n",
+        "    p.project_name,\r\n",
+        "    e.expense_id,\r\n",
+        "    e.category,\r\n",
+        "    e.vendor_name,\r\n",
+        "    d.calendar_date AS invoice_date,\r\n",
+        "    e.expense_amount,\r\n",
+        "    e.adls_raw_uri\r\n",
+        "FROM dbw_proman_lakehouse_01.default.fact_expenses e\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_project p ON e.project_key = p.project_key\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_date d ON e.date_key = d.date_key\r\n",
+        "WHERE e.project_key != \"-1\"\r\n",
+        "ORDER BY invoice_date DESC;"
+      ]
+    },
+    {
+      "name": "c20f8ed2",
+      "displayName": "ds_project_storage",
+      "queryLines": [
+        "SELECT \r\n",
+        "    p.project_name,\r\n",
+        "    d.file_type,\r\n",
+        "    COUNT(d.document_id) AS file_count,\r\n",
+        "    ROUND(SUM(d.file_size_mb), 2) AS storage_mb\r\n",
+        "FROM dbw_proman_lakehouse_01.default.fact_project_documents d\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_project p ON d.project_key = p.project_key\r\n",
+        "WHERE d.project_key != \"-1\"\r\n",
+        "GROUP BY p.project_name, d.file_type\r\n",
+        "ORDER BY storage_mb DESC;"
+      ]
+    },
+    {
+      "name": "4cb25dc4",
+      "displayName": "ds_resource_summary_kpi",
+      "queryLines": [
+        "SELECT \r\n",
+        "    u.user_id,\r\n",
+        "    u.full_name,\r\n",
+        "    u.department,\r\n",
+        "    u.role,\r\n",
+        "    u.hourly_rate,\r\n",
+        "    u.is_active,\r\n",
+        "    COUNT(DISTINCT f.date_key) AS active_working_days,\r\n",
+        "    ROUND(COALESCE(SUM(f.hours_worked), 0.0), 1) AS total_logged_hours,\r\n",
+        "    ROUND(COALESCE(SUM(f.labor_cost), 0.0), 2) AS total_cost_generated,\r\n",
+        "    ROUND(\r\n",
+        "        COALESCE(SUM(f.hours_worked), 0.0) / NULLIF(COUNT(DISTINCT f.date_key), 0), 2\r\n",
+        "    ) AS avg_daily_hours,\r\n",
+        "    COUNT(DISTINCT f.project_key) AS total_assigned_projects\r\n",
+        "FROM dbw_proman_lakehouse_01.default.dim_user u\r\n",
+        "LEFT JOIN dbw_proman_lakehouse_01.default.fact_timesheet f ON u.user_key = f.user_key\r\n",
+        "WHERE u.user_key != \"-1\"\r\n",
+        "GROUP BY u.user_id, u.full_name, u.department, u.role, u.hourly_rate, u.is_active;"
+      ]
+    },
+    {
+      "name": "e6da33d4",
+      "displayName": "ds_resource_project_allocation",
+      "queryLines": [
+        "WITH user_effort AS (\r\n",
+        "    SELECT \r\n",
+        "        u.full_name,\r\n",
+        "        p.project_name,\r\n",
+        "        p.status AS project_status,\r\n",
+        "        ROUND(SUM(f.hours_worked), 1) AS hours_on_project,\r\n",
+        "        ROUND(SUM(f.labor_cost), 2) AS cost_on_project\r\n",
+        "    FROM dbw_proman_lakehouse_01.default.fact_timesheet f\r\n",
+        "    JOIN dbw_proman_lakehouse_01.default.dim_user u ON f.user_key = u.user_key\r\n",
+        "    JOIN dbw_proman_lakehouse_01.default.dim_project p ON f.project_key = p.project_key\r\n",
+        "    WHERE f.user_key != \"-1\" AND f.project_key != \"-1\"\r\n",
+        "    GROUP BY u.full_name, p.project_name, p.status\r\n",
+        ")\r\n",
+        "SELECT \r\n",
+        "    full_name,\r\n",
+        "    project_name,\r\n",
+        "    project_status,\r\n",
+        "    hours_on_project,\r\n",
+        "    cost_on_project,\r\n",
+        "    ROUND(\r\n",
+        "        (hours_on_project / SUM(hours_on_project) OVER (PARTITION BY full_name)) * 100, 1\r\n",
+        "    ) AS allocation_share_pct\r\n",
+        "FROM user_effort\r\n",
+        "ORDER BY hours_on_project DESC;"
+      ]
+    },
+    {
+      "name": "ddfd9b2b",
+      "displayName": "ds_resource_task_ledger",
+      "queryLines": [
+        "SELECT \r\n",
+        "    assignee_name AS full_name,\r\n",
+        "    project_name,\r\n",
+        "    task_id,\r\n",
+        "    task_name,\r\n",
+        "    priority,\r\n",
+        "    task_status,\r\n",
+        "    estimated_hours,\r\n",
+        "    actual_hours_logged,\r\n",
+        "    latest_progress_pct,\r\n",
+        "    hour_variance,\r\n",
+        "    execution_health\r\n",
+        "FROM dbw_proman_lakehouse_01.default.agg_task_overview\r\n",
+        "ORDER BY actual_hours_logged DESC;"
+      ]
+    },
+    {
+      "name": "00e5f574",
+      "displayName": "ds_resource_weekly_pacing",
+      "queryLines": [
+        "SELECT \r\n",
+        "    u.full_name,\r\n",
+        "    DATE_TRUNC('week', d.calendar_date) AS work_week,\r\n",
+        "    ROUND(SUM(f.hours_worked), 1) AS weekly_hours\r\n",
+        "FROM dbw_proman_lakehouse_01.default.fact_timesheet f\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_user u ON f.user_key = u.user_key\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_date d ON f.date_key = d.date_key\r\n",
+        "WHERE f.user_key != \"-1\"\r\n",
+        "GROUP BY u.full_name, DATE_TRUNC('week', d.calendar_date)\r\n",
+        "ORDER BY work_week;"
+      ]
+    },
+    {
+      "name": "23e409a4",
+      "displayName": "ds_quarantine_audit",
+      "queryLines": [
+        "SELECT \r\n",
+        "    source_table,\r\n",
+        "    issue_reason,\r\n",
+        "    COUNT(*) AS rejected_records_count,\r\n",
+        "    MAX(quarantined_at) AS last_occurrence\r\n",
+        "FROM dbw_proman_lakehouse_01.default.quarantine_master\r\n",
+        "GROUP BY source_table, issue_reason\r\n",
+        "ORDER BY rejected_records_count DESC;"
+      ]
+    },
+    {
+      "name": "6d2ff392",
+      "displayName": "ds_scope_creep_tracking",
+      "queryLines": [
+        "WITH ranked AS (\n",
+        "    SELECT\n",
+        "        project_id,\n",
+        "        project_name,\n",
+        "        task_key,\n",
+        "        snapshot_date,\n",
+        "        estimated_hours,\n",
+        "        actual_hours_logged,\n",
+        "        _updated_at,\n",
+        "        ROW_NUMBER() OVER (\n",
+        "            PARTITION BY task_key, snapshot_date\n",
+        "            ORDER BY _updated_at DESC\n",
+        "        ) AS rn\n",
+        "    FROM dbw_proman_lakehouse_01.default.fact_task_snapshot\n",
+        ")\n",
+        "\n",
+        "SELECT\n",
+        "    project_id,\n",
+        "    project_name,\n",
+        "    snapshot_date,\n",
+        "    SUM(estimated_hours) AS total_estimated_effort,\n",
+        "    SUM(actual_hours_logged) AS total_actual_hours\n",
+        "FROM ranked\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "    project_id,\n",
+        "    project_name,\n",
+        "    snapshot_date\n",
+        "ORDER BY\n",
+        "    snapshot_date ASC;"
+      ]
+    },
+    {
+      "name": "b33d53a7",
+      "displayName": "ds_stale_task",
+      "queryLines": [
+        "WITH RankedSnapshots AS (\r\n",
+        "    SELECT \r\n",
+        "        task_id,\r\n",
+        "        task_name,\r\n",
+        "        assignee_name,\r\n",
+        "        project_name,\r\n",
+        "        task_status,\r\n",
+        "        actual_hours_logged,\r\n",
+        "        snapshot_date,\r\n",
+        "        -- Rank snapshots backwards from today (1 = most recent)\r\n",
+        "        DENSE_RANK() OVER (ORDER BY snapshot_date DESC) as snap_rank\r\n",
+        "    FROM dbw_proman_lakehouse_01.default.fact_task_snapshot\r\n",
+        "    WHERE task_status IN ('In Progress', 'Blocked')\r\n",
+        ")\r\n",
+        "SELECT \r\n",
+        "    task_id,\r\n",
+        "    task_name,\r\n",
+        "    assignee_name,\r\n",
+        "    project_name,\r\n",
+        "    task_status AS current_status,\r\n",
+        "    MAX(actual_hours_logged) AS stalled_hours,\r\n",
+        "    MIN(snapshot_date) AS stalled_since_date\r\n",
+        "FROM RankedSnapshots\r\n",
+        "WHERE snap_rank <= 2 -- Look only at the 3 most recent snapshots\r\n",
+        "GROUP BY task_id, task_name, assignee_name, project_name, task_status\r\n",
+        "-- Only keep tasks where the maximum hours logged equals the minimum hours logged \r\n",
+        "-- (meaning 0 hours were added over the last 3 snapshots)\r\n",
+        "HAVING MAX(actual_hours_logged) = MIN(actual_hours_logged)\r\n",
+        "   -- Ensure the task actually existed in all 3 snapshots\r\n",
+        "   AND COUNT(DISTINCT snap_rank) >= 2\r\n",
+        "ORDER BY stalled_since_date ASC"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "569acb1c",
+      "displayName": "Project 360",
+      "layout": [
+        {
+          "widget": {
+            "name": "select-project",
+            "queries": [
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28989715e494d04249aaf04c46_project_name",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28ac8a1aea8b7bc3f1fd76a22e_project_name",
+                "query": {
+                  "datasetName": "028eeaac",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28b833174fa1e38a6ec24502ca_project_name",
+                "query": {
+                  "datasetName": "5f053374",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c23a1da3be45a39f544c3513_project_name",
+                "query": {
+                  "datasetName": "b65bc16b",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c9ad1aa9973a76a807827b48_project_name",
+                "query": {
+                  "datasetName": "c20f8ed2",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1b51e70731e12a8edf45f243b3eee_project_name",
+                "query": {
+                  "datasetName": "6d2ff392",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Select Project",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28989715e494d04249aaf04c46_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28ac8a1aea8b7bc3f1fd76a22e_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28b833174fa1e38a6ec24502ca_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c23a1da3be45a39f544c3513_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c9ad1aa9973a76a807827b48_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1b51e70731e12a8edf45f243b3eee_project_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "budget",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "sum(budget_amount)",
+                      "expression": "SUM(`budget_amount`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Budget",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(budget_amount)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "spend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "sum(total_actual_cost)",
+                      "expression": "SUM(`total_actual_cost`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Spend",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_actual_cost)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "d87134b6",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "total_tasks",
+                      "expression": "`total_tasks`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Tasks",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_tasks",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "6ea67c10",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "avg_task_progress_pct",
+                      "expression": "`avg_task_progress_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Average Task Process",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_task_progress_pct",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "spend-burn-trajectory",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "028eeaac",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "work_week",
+                      "expression": "`work_week`"
+                    },
+                    {
+                      "name": "cumulative_labor_spend",
+                      "expression": "`cumulative_labor_spend`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Spend Burn Trajectory",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "work_week",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "cumulative_labor_spend",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "project_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 4,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "task-status-breakdown",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5f053374",
+                  "fields": [
+                    {
+                      "name": "task_status",
+                      "expression": "`task_status`"
+                    },
+                    {
+                      "name": "count(task_id)",
+                      "expression": "COUNT(`task_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Task Status Breakdown",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 1
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "count(task_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "task_status",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "color": {
+                  "fieldName": "task_status",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Blocked",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 4
+                        }
+                      },
+                      {
+                        "value": "Done",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 3
+                        }
+                      },
+                      {
+                        "value": "In Progress",
+                        "color": {
+                          "themeColorType": "visualizationColors",
+                          "position": 2
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 2,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "task-velocity-slippage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "5f053374",
+                  "fields": [
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "assignee_name",
+                      "expression": "`assignee_name`"
+                    },
+                    {
+                      "name": "priority",
+                      "expression": "`priority`"
+                    },
+                    {
+                      "name": "task_status",
+                      "expression": "`task_status`"
+                    },
+                    {
+                      "name": "estimated_hours",
+                      "expression": "`estimated_hours`"
+                    },
+                    {
+                      "name": "actual_hours_logged",
+                      "expression": "`actual_hours_logged`"
+                    },
+                    {
+                      "name": "latest_progress_pct",
+                      "expression": "`latest_progress_pct`"
+                    },
+                    {
+                      "name": "hour_variance",
+                      "expression": "`hour_variance`"
+                    },
+                    {
+                      "name": "execution_health",
+                      "expression": "`execution_health`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`actual_hours_logged`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Task Velocity & Slippage",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "task_name"
+                  },
+                  {
+                    "fieldName": "assignee_name"
+                  },
+                  {
+                    "fieldName": "priority"
+                  },
+                  {
+                    "fieldName": "task_status"
+                  },
+                  {
+                    "fieldName": "estimated_hours"
+                  },
+                  {
+                    "fieldName": "actual_hours_logged"
+                  },
+                  {
+                    "fieldName": "latest_progress_pct"
+                  },
+                  {
+                    "fieldName": "hour_variance"
+                  },
+                  {
+                    "fieldName": "execution_health"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column",
+                    "field": {
+                      "index": 5
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 7,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "vendor-invoices",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b65bc16b",
+                  "fields": [
+                    {
+                      "name": "invoice_date",
+                      "expression": "`invoice_date`"
+                    },
+                    {
+                      "name": "vendor_name",
+                      "expression": "`vendor_name`"
+                    },
+                    {
+                      "name": "category",
+                      "expression": "`category`"
+                    },
+                    {
+                      "name": "expense_amount",
+                      "expression": "`expense_amount`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Vendor Invoices",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "invoice_date"
+                  },
+                  {
+                    "fieldName": "vendor_name"
+                  },
+                  {
+                    "fieldName": "category"
+                  },
+                  {
+                    "fieldName": "expense_amount",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "EUR",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": true
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 8,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "33a73dd8",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6d2ff392",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "daily(snapshot_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `snapshot_date`)"
+                    },
+                    {
+                      "name": "total_estimated_effort",
+                      "expression": "`total_estimated_effort`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {},
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(snapshot_date)",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "total_estimated_effort",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "project_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 4,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "3a49bbbd",
+      "displayName": "Resource 360",
+      "layout": [
+        {
+          "widget": {
+            "name": "2479259a",
+            "queries": [
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28cf801282ab82d99535c0be4f_full_name",
+                "query": {
+                  "datasetName": "4cb25dc4",
+                  "fields": [
+                    {
+                      "name": "full_name",
+                      "expression": "`full_name`"
+                    },
+                    {
+                      "name": "full_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28e12b12e2a9a2948d2dd36d87_full_name",
+                "query": {
+                  "datasetName": "e6da33d4",
+                  "fields": [
+                    {
+                      "name": "full_name",
+                      "expression": "`full_name`"
+                    },
+                    {
+                      "name": "full_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28e774105a9f58f540c550b3ae_full_name",
+                "query": {
+                  "datasetName": "ddfd9b2b",
+                  "fields": [
+                    {
+                      "name": "full_name",
+                      "expression": "`full_name`"
+                    },
+                    {
+                      "name": "full_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28ec371c19926b683e9e279498_full_name",
+                "query": {
+                  "datasetName": "00e5f574",
+                  "fields": [
+                    {
+                      "name": "full_name",
+                      "expression": "`full_name`"
+                    },
+                    {
+                      "name": "full_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "full_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28cf801282ab82d99535c0be4f_full_name"
+                  },
+                  {
+                    "fieldName": "full_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28e12b12e2a9a2948d2dd36d87_full_name"
+                  },
+                  {
+                    "fieldName": "full_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28e774105a9f58f540c550b3ae_full_name"
+                  },
+                  {
+                    "fieldName": "full_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28ec371c19926b683e9e279498_full_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "total-logged-hours",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4cb25dc4",
+                  "fields": [
+                    {
+                      "name": "sum(total_logged_hours)",
+                      "expression": "SUM(`total_logged_hours`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total Logged Hours",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_logged_hours)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "cfac8b61",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4cb25dc4",
+                  "fields": [
+                    {
+                      "name": "sum(avg_daily_hours)",
+                      "expression": "SUM(`avg_daily_hours`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Pacing / Daily Average",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(avg_daily_hours)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "formatTemplate": "{{ @formatted }} hrs/day"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "05bca102",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4cb25dc4",
+                  "fields": [
+                    {
+                      "name": "sum(total_assigned_projects)",
+                      "expression": "SUM(`total_assigned_projects`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Active Projects",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_assigned_projects)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "c81ee2d4",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4cb25dc4",
+                  "fields": [
+                    {
+                      "name": "sum(total_cost_generated)",
+                      "expression": "SUM(`total_cost_generated`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "**Capital Value Delivered:**",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_cost_generated)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "a8df3763",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "e6da33d4",
+                  "fields": [
+                    {
+                      "name": "hours_on_project",
+                      "expression": "`hours_on_project`"
+                    },
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "hours_on_project",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "project_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 2,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "66b5170a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "00e5f574",
+                  "fields": [
+                    {
+                      "name": "work_week",
+                      "expression": "`work_week`"
+                    },
+                    {
+                      "name": "sum(weekly_hours)",
+                      "expression": "SUM(`weekly_hours`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "work_week",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(weekly_hours)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 2,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "assigned-task",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ddfd9b2b",
+                  "fields": [
+                    {
+                      "name": "full_name",
+                      "expression": "`full_name`"
+                    },
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "task_id",
+                      "expression": "`task_id`"
+                    },
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "priority",
+                      "expression": "`priority`"
+                    },
+                    {
+                      "name": "task_status",
+                      "expression": "`task_status`"
+                    },
+                    {
+                      "name": "estimated_hours",
+                      "expression": "`estimated_hours`"
+                    },
+                    {
+                      "name": "actual_hours_logged",
+                      "expression": "`actual_hours_logged`"
+                    },
+                    {
+                      "name": "latest_progress_pct",
+                      "expression": "`latest_progress_pct`"
+                    },
+                    {
+                      "name": "hour_variance",
+                      "expression": "`hour_variance`"
+                    },
+                    {
+                      "name": "execution_health",
+                      "expression": "`execution_health`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Assigned Task ",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "full_name"
+                  },
+                  {
+                    "fieldName": "project_name"
+                  },
+                  {
+                    "fieldName": "task_id"
+                  },
+                  {
+                    "fieldName": "task_name"
+                  },
+                  {
+                    "fieldName": "priority"
+                  },
+                  {
+                    "fieldName": "task_status"
+                  },
+                  {
+                    "fieldName": "estimated_hours"
+                  },
+                  {
+                    "fieldName": "actual_hours_logged"
+                  },
+                  {
+                    "fieldName": "latest_progress_pct"
+                  },
+                  {
+                    "fieldName": "hour_variance"
+                  },
+                  {
+                    "fieldName": "execution_health"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 8,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "d96bc47c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b33d53a7",
+                  "fields": [
+                    {
+                      "name": "task_id",
+                      "expression": "`task_id`"
+                    },
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "assignee_name",
+                      "expression": "`assignee_name`"
+                    },
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "current_status",
+                      "expression": "`current_status`"
+                    },
+                    {
+                      "name": "stalled_hours",
+                      "expression": "`stalled_hours`"
+                    },
+                    {
+                      "name": "stalled_since_date",
+                      "expression": "`stalled_since_date`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "task_id"
+                  },
+                  {
+                    "fieldName": "task_name"
+                  },
+                  {
+                    "fieldName": "assignee_name"
+                  },
+                  {
+                    "fieldName": "project_name"
+                  },
+                  {
+                    "fieldName": "current_status"
+                  },
+                  {
+                    "fieldName": "stalled_hours"
+                  },
+                  {
+                    "fieldName": "stalled_since_date"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 4
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "6331c033",
+      "displayName": "Governance Audit Section",
+      "layout": [
+        {
+          "widget": {
+            "name": "total-quarantined-records",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "23e409a4",
+                  "fields": [
+                    {
+                      "name": "sum(rejected_records_count)",
+                      "expression": "SUM(`rejected_records_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Total Quarantined Records",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(rejected_records_count)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "1166711a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "23e409a4",
+                  "fields": [
+                    {
+                      "name": "source_table",
+                      "expression": "`source_table`"
+                    },
+                    {
+                      "name": "issue_reason",
+                      "expression": "`issue_reason`"
+                    },
+                    {
+                      "name": "rejected_records_count",
+                      "expression": "`rejected_records_count`"
+                    },
+                    {
+                      "name": "last_occurrence",
+                      "expression": "`last_occurrence`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": false
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "source_table"
+                  },
+                  {
+                    "fieldName": "issue_reason"
+                  },
+                  {
+                    "fieldName": "rejected_records_count"
+                  },
+                  {
+                    "fieldName": "last_occurrence"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 1,
+            "width": 5,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "06cdd28f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c20f8ed2",
+                  "fields": [
+                    {
+                      "name": "file_type",
+                      "expression": "`file_type`"
+                    },
+                    {
+                      "name": "sum(storage_mb)",
+                      "expression": "SUM(`storage_mb`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Artifact Footprint",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "file_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(storage_mb)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "file_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "6741d2a5",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "sum(total_storage_mb)",
+                      "expression": "SUM(`total_storage_mb`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Storage Footprint",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_storage_mb)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 1,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "ae7daa1d",
+            "queries": [
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28989715e494d04249aaf04c46_project_name",
+                "query": {
+                  "datasetName": "6c804f3e",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28989715e494d04249aaf04c46_project_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "system_name": "ProMan-TimeSync-Microservice",
+  "export_version": "3.2.0",
+  "extracted_at": "2026-09-20 18:55:43.249414",
+  "record_count": 101,
+  "logs": [
+    {
+      "entry_id": "LOG-1001",
+      "project_id": "PRJ-2001",
+      "task_id": "TSK-5001",
+      "user_id": 120,
+      "date": "2026-08-14",
+      "hours_worked": 19.4,
+      "progress_pct": 33,
+      "activity_description": "Debugging environment issues",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1002",
+      "project_id": "PRJ-2001",
+      "task_id": "TSK-5001",
+      "user_id": 120,
+      "date": "2026-09-11",
+      "hours_worked": 11.7,
+      "progress_pct": 66,
+      "activity_description": "Sprint planning meeting",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1003",
+      "project_id": "PRJ-2001",
+      "task_id": "TSK-5001",
+      "user_id": 120,
+      "date": "2026-09-12",
+      "hours_worked": 10.0,
+      "progress_pct": 100,
+      "activity_description": "Created the database schema",
+      "is_billable": true
+    },
+    {
+      "entry_id": "LOG-1004",
+      "project_id": "PRJ-2001",
+      "task_id": "TSK-5002",
+      "user_id": 118,
+      "date": "2026-08-07",
+      "hours_worked": 4.6,
+      "progress_pct": 33,
+      "activity_description": "Added unit tests",
+      "is_billable": true
+    }
+  ]
+}

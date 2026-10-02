@@ -11,7 +11,7 @@ WITH ranked AS (
             PARTITION BY task_key, snapshot_date
             ORDER BY _updated_at DESC
         ) AS rn
-    FROM dbw_proman_lakehouse_01.default.fact_task_snapshot
+    FROM dbw_proman_lakehouse_01.default.agg_task_snapshot
 )
 
 SELECT

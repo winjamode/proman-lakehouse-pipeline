@@ -32,32 +32,70 @@
       "name": "028eeaac",
       "displayName": "ds_project_weekly_burn_trend",
       "queryLines": [
-        "WITH weekly_burn AS (\r\n",
+        "WITH weekly_labor AS (\r\n",
         "    SELECT \r\n",
-        "        p.project_name,\r\n",
-        "        d.year,\r\n",
+        "        f.project_key,\r\n",
         "        DATE_TRUNC('week', d.calendar_date) AS work_week,\r\n",
-        "        ROUND(SUM(f.hours_worked), 1) AS weekly_hours,\r\n",
-        "        ROUND(SUM(f.labor_cost), 2) AS weekly_labor_spend\r\n",
+        "        SUM(f.hours_worked) AS weekly_hours,\r\n",
+        "        SUM(f.labor_cost) AS weekly_labor\r\n",
         "    FROM dbw_proman_lakehouse_01.default.fact_timesheet f\r\n",
         "    JOIN dbw_proman_lakehouse_01.default.dim_date d ON f.date_key = d.date_key\r\n",
-        "    JOIN dbw_proman_lakehouse_01.default.dim_project p ON f.project_key = p.project_key\r\n",
         "    WHERE f.project_key != \"-1\"\r\n",
-        "    GROUP BY p.project_name, d.year, DATE_TRUNC('week', d.calendar_date)\r\n",
+        "    GROUP BY f.project_key, DATE_TRUNC('week', d.calendar_date)\r\n",
+        "),\r\n",
+        "\r\n",
+        "weekly_expenses AS (\r\n",
+        "    SELECT \r\n",
+        "        e.project_key,\r\n",
+        "        DATE_TRUNC('week', d.calendar_date) AS work_week,\r\n",
+        "        SUM(e.expense_amount) AS weekly_expenses\r\n",
+        "    FROM dbw_proman_lakehouse_01.default.fact_expenses e\r\n",
+        "    JOIN dbw_proman_lakehouse_01.default.dim_date d ON e.date_key = d.date_key\r\n",
+        "    WHERE e.project_key != \"-1\"\r\n",
+        "    GROUP BY e.project_key, DATE_TRUNC('week', d.calendar_date)\r\n",
+        "),\r\n",
+        "\r\n",
+        "weekly_joined AS (\r\n",
+        "    SELECT \r\n",
+        "        COALESCE(l.project_key, x.project_key) AS project_key,\r\n",
+        "        COALESCE(l.work_week, x.work_week) AS work_week,\r\n",
+        "        COALESCE(l.weekly_labor, 0) AS weekly_labor,\r\n",
+        "        COALESCE(x.weekly_expenses, 0) AS weekly_expenses\r\n",
+        "    FROM weekly_labor l\r\n",
+        "    FULL OUTER JOIN weekly_expenses x \r\n",
+        "        ON l.project_key = x.project_key AND l.work_week = x.work_week\r\n",
         ")\r\n",
+        "\r\n",
         "SELECT \r\n",
-        "    project_name,\r\n",
-        "    work_week,\r\n",
-        "    weekly_hours,\r\n",
-        "    weekly_labor_spend,\r\n",
+        "    p.project_name,\r\n",
+        "    j.work_week,\r\n",
+        "    -- 1. Cumulative Labor Line\r\n",
         "    ROUND(\r\n",
-        "        SUM(weekly_labor_spend) OVER (\r\n",
-        "            PARTITION BY project_name \r\n",
-        "            ORDER BY work_week \r\n",
+        "        SUM(j.weekly_labor) OVER (\r\n",
+        "            PARTITION BY p.project_name \r\n",
+        "            ORDER BY j.work_week \r\n",
         "            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\r\n",
         "        ), 2\r\n",
-        "    ) AS cumulative_labor_spend\r\n",
-        "FROM weekly_burn\r\n",
+        "    ) AS cumulative_labor_spend,\r\n",
+        "    -- 2. Cumulative Expenses Line\r\n",
+        "    ROUND(\r\n",
+        "        SUM(j.weekly_expenses) OVER (\r\n",
+        "            PARTITION BY p.project_name \r\n",
+        "            ORDER BY j.work_week \r\n",
+        "            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\r\n",
+        "        ), 2\r\n",
+        "    ) AS cumulative_expense_spend,\r\n",
+        "    -- 3. Cumulative Total Spend Line\r\n",
+        "    ROUND(\r\n",
+        "        SUM(j.weekly_labor + j.weekly_expenses) OVER (\r\n",
+        "            PARTITION BY p.project_name \r\n",
+        "            ORDER BY j.work_week \r\n",
+        "            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\r\n",
+        "        ), 2\r\n",
+        "    ) AS cumulative_total_spend\r\n",
+        "FROM weekly_joined j\r\n",
+        "JOIN dbw_proman_lakehouse_01.default.dim_project p \r\n",
+        "    ON j.project_key = p.project_key\r\n",
         "ORDER BY project_name, work_week;"
       ]
     },
@@ -239,7 +277,7 @@
         "            PARTITION BY task_key, snapshot_date\n",
         "            ORDER BY _updated_at DESC\n",
         "        ) AS rn\n",
-        "    FROM dbw_proman_lakehouse_01.default.fact_task_snapshot\n",
+        "    FROM dbw_proman_lakehouse_01.default.agg_task_snapshot\n",
         ")\n",
         "\n",
         "SELECT\n",
@@ -273,7 +311,7 @@
         "        snapshot_date,\r\n",
         "        -- Rank snapshots backwards from today (1 = most recent)\r\n",
         "        DENSE_RANK() OVER (ORDER BY snapshot_date DESC) as snap_rank\r\n",
-        "    FROM dbw_proman_lakehouse_01.default.fact_task_snapshot\r\n",
+        "    FROM dbw_proman_lakehouse_01.default.agg_task_snapshot\r\n",
         "    WHERE task_status IN ('In Progress', 'Blocked')\r\n",
         ")\r\n",
         "SELECT \r\n",
@@ -285,12 +323,12 @@
         "    MAX(actual_hours_logged) AS stalled_hours,\r\n",
         "    MIN(snapshot_date) AS stalled_since_date\r\n",
         "FROM RankedSnapshots\r\n",
-        "WHERE snap_rank <= 2 -- Look only at the 3 most recent snapshots\r\n",
+        "WHERE snap_rank <= 2 -- Look only at the 2 most recent snapshots\r\n",
         "GROUP BY task_id, task_name, assignee_name, project_name, task_status\r\n",
         "-- Only keep tasks where the maximum hours logged equals the minimum hours logged \r\n",
-        "-- (meaning 0 hours were added over the last 3 snapshots)\r\n",
+        "-- (meaning 0 hours were added over the last 2 snapshots)\r\n",
         "HAVING MAX(actual_hours_logged) = MIN(actual_hours_logged)\r\n",
-        "   -- Ensure the task actually existed in all 3 snapshots\r\n",
+        "   -- Ensure the task actually existed in all 2 snapshots\r\n",
         "   AND COUNT(DISTINCT snap_rank) >= 2\r\n",
         "ORDER BY stalled_since_date ASC"
       ]
@@ -406,6 +444,23 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1b51ec2801efc908957802457615a_project_name",
+                "query": {
+                  "datasetName": "b33d53a7",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -443,6 +498,10 @@
                   {
                     "fieldName": "project_name",
                     "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1b51e70731e12a8edf45f243b3eee_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1b51ec2801efc908957802457615a_project_name"
                   }
                 ]
               }
@@ -638,7 +697,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "Average Task Process",
+                  "value": "<span style=\"text-align:center;display:block;\">Average Task Process</span>",
                   "fields": []
                 }
               },
@@ -682,12 +741,16 @@
                   "datasetName": "028eeaac",
                   "fields": [
                     {
-                      "name": "project_name",
-                      "expression": "`project_name`"
-                    },
-                    {
                       "name": "work_week",
                       "expression": "`work_week`"
+                    },
+                    {
+                      "name": "cumulative_total_spend",
+                      "expression": "`cumulative_total_spend`"
+                    },
+                    {
+                      "name": "cumulative_expense_spend",
+                      "expression": "`cumulative_expense_spend`"
                     },
                     {
                       "name": "cumulative_labor_spend",
@@ -716,16 +779,23 @@
                   }
                 },
                 "y": {
-                  "fieldName": "cumulative_labor_spend",
                   "scale": {
                     "type": "quantitative"
-                  }
-                },
-                "color": {
-                  "fieldName": "project_name",
-                  "scale": {
-                    "type": "categorical"
-                  }
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "cumulative_total_spend",
+                      "displayName": "Total Spend"
+                    },
+                    {
+                      "fieldName": "cumulative_expense_spend",
+                      "displayName": "Vendor Expenses"
+                    },
+                    {
+                      "fieldName": "cumulative_labor_spend",
+                      "displayName": "Labor Expenses"
+                    }
+                  ]
                 }
               },
               "data": {
@@ -985,7 +1055,7 @@
             "x": 0,
             "y": 4,
             "width": 7,
-            "height": 4
+            "height": 3
           }
         },
         {
@@ -1061,7 +1131,7 @@
           },
           "position": {
             "x": 4,
-            "y": 8,
+            "y": 7,
             "width": 3,
             "height": 3
           }
@@ -1105,6 +1175,7 @@
                 },
                 "y": {
                   "fieldName": "total_estimated_effort",
+                  "displayName": "Estimated Hours",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1123,9 +1194,98 @@
           },
           "position": {
             "x": 0,
-            "y": 8,
+            "y": 7,
             "width": 4,
             "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "stalled-tasks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b33d53a7",
+                  "fields": [
+                    {
+                      "name": "task_id",
+                      "expression": "`task_id`"
+                    },
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "assignee_name",
+                      "expression": "`assignee_name`"
+                    },
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "current_status",
+                      "expression": "`current_status`"
+                    },
+                    {
+                      "name": "stalled_hours",
+                      "expression": "`stalled_hours`"
+                    },
+                    {
+                      "name": "stalled_since_date",
+                      "expression": "`stalled_since_date`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Stalled Tasks",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "task_id"
+                  },
+                  {
+                    "fieldName": "task_name"
+                  },
+                  {
+                    "fieldName": "assignee_name"
+                  },
+                  {
+                    "fieldName": "project_name"
+                  },
+                  {
+                    "fieldName": "current_status"
+                  },
+                  {
+                    "fieldName": "stalled_hours"
+                  },
+                  {
+                    "fieldName": "stalled_since_date"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 7,
+            "height": 2
           }
         }
       ],
@@ -1668,90 +1828,8 @@
           "position": {
             "x": 0,
             "y": 5,
-            "width": 8,
+            "width": 7,
             "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "d96bc47c",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "b33d53a7",
-                  "fields": [
-                    {
-                      "name": "task_id",
-                      "expression": "`task_id`"
-                    },
-                    {
-                      "name": "task_name",
-                      "expression": "`task_name`"
-                    },
-                    {
-                      "name": "assignee_name",
-                      "expression": "`assignee_name`"
-                    },
-                    {
-                      "name": "project_name",
-                      "expression": "`project_name`"
-                    },
-                    {
-                      "name": "current_status",
-                      "expression": "`current_status`"
-                    },
-                    {
-                      "name": "stalled_hours",
-                      "expression": "`stalled_hours`"
-                    },
-                    {
-                      "name": "stalled_since_date",
-                      "expression": "`stalled_since_date`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "task_id"
-                  },
-                  {
-                    "fieldName": "task_name"
-                  },
-                  {
-                    "fieldName": "assignee_name"
-                  },
-                  {
-                    "fieldName": "project_name"
-                  },
-                  {
-                    "fieldName": "current_status"
-                  },
-                  {
-                    "fieldName": "stalled_hours"
-                  },
-                  {
-                    "fieldName": "stalled_since_date"
-                  }
-                ]
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 8,
-            "width": 6,
-            "height": 4
           }
         }
       ],
@@ -2011,6 +2089,23 @@
                   ],
                   "disaggregated": false
                 }
+              },
+              {
+                "name": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c9ad1aa9973a76a807827b48_project_name",
+                "query": {
+                  "datasetName": "c20f8ed2",
+                  "fields": [
+                    {
+                      "name": "project_name",
+                      "expression": "`project_name`"
+                    },
+                    {
+                      "name": "project_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
               }
             ],
             "spec": {
@@ -2024,6 +2119,10 @@
                   {
                     "fieldName": "project_name",
                     "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28989715e494d04249aaf04c46_project_name"
+                  },
+                  {
+                    "fieldName": "project_name",
+                    "queryName": "dashboards/01f1ad287e82167fb06942cf3d331d7f/datasets/01f1ad28c9ad1aa9973a76a807827b48_project_name"
                   }
                 ]
               }

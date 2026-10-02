@@ -93,7 +93,7 @@ logs.append({
     "project_id": "PRJ-2001",
     "task_id": "TSK-5001",
     "user_id": 101,
-    "date": (today + timedelta(days=2)).strftime("%Y-%m-%d"), # future date!
+    "date": (today + timedelta(days=2)).strftime("%Y-%m-%d"), # future date
     "hours_worked": 26.5, # over 24 hours in a day
     "progress_pct": 150,  # can't be over 100
     "activity_description": "Testing quarantine bad data",
